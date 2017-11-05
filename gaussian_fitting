@@ -1,0 +1,448 @@
+import numpy as np
+from scipy import interpolate
+import matplotlib.pyplot as plt
+from numpy import polyfit
+from scipy import asarray as ar
+from scipy.optimize import curve_fit
+
+def gaussian_profile(x, mu, sig, area):
+    div = x - np.roll(x, +1)
+    index_profile=(mu+6*sig >= x) & (mu-6*sig <= x)
+    profile = -1.0/np.sqrt(2*np.pi*sig**2)*np.exp(-(x-mu)**2/(2*sig**2))
+    scale=np.abs(np.sum(profile[index_profile]*div[index_profile]))
+    profile = area*profile/scale
+    return profile
+
+info = np.loadtxt('/path/to/file/redshift_info.txt')
+z_arr= info[:,0]
+zabs_arr = info[:,1]
+
+# result from weighted combination of candidate spectra recorded in a 3-column file.
+info_sp=np.loadtxt('/path/to/file/weighted_combination.txt')
+restwave=info_sp[:,0]
+final_combine=info_sp[:,1]
+err_combine=info_sp[:,2]
+
+# creating a search list for metal absorption lines
+CI_1656 = []
+CIV_1548 = []
+CIV_1550 = []
+MgI_2852 = []
+MgI_2026 = []
+MgI_1827 = []
+MgII_2796 = []
+MgII_2803 = []
+AlII_1670 = []
+AlIII_1854 = []
+AlIII_1862 = []
+SiII_1526 = []
+SiII_1808 = []
+CaII_3934 = []
+CaII_3969 = []
+TiII_3384 = []
+TiII_3242 = []
+TiII_3073 = []
+TiII_3230 = []
+TiII_1910 = []
+CrII_2056 = []
+CrII_2062 = []
+CrII_2066 = []
+MnII_2576 = []
+MnII_2594 = []
+MnII_2606 = []
+FeII_1608 = []
+FeII_2382 = []
+FeII_2600 = []
+FeII_2344 = []
+FeII_2586 = []
+FeII_2374 = []
+FeII_2260 = []
+FeII_2249 = []
+FeII_2367 = []
+CoII_2012 = []
+CoII_1941 = []
+NiII_1741 = []
+NiII_1709 = []
+NiII_1751= []
+ZnII_2026 = []
+ZnII_2062 = []
+
+v_CI_1656 = []
+v_CIV_1548 = []
+v_CIV_1550 = []
+v_MgI_2852 = []
+v_MgI_2026 = []
+v_MgI_1827 = []
+v_MgII_2796 = []
+v_MgII_2803 = []
+v_AlII_1670 = []
+v_AlIII_1854 = []
+v_AlIII_1862 = []
+v_SiII_1526 = []
+v_SiII_1808 = []
+v_CaII_3934 = []
+v_CaII_3969 = []
+v_TiII_3384 = []
+v_TiII_3242 = []
+v_TiII_3073 = []
+v_TiII_3230 = []
+v_TiII_1910 = []
+v_CrII_2056 = []
+v_CrII_2062 = []
+v_CrII_2066 = []
+v_MnII_2576 = []
+v_MnII_2594 = []
+v_MnII_2606 = []
+v_FeII_1608 = []
+v_FeII_2382 = []
+v_FeII_2600 = []
+v_FeII_2344 = []
+v_FeII_2586 = []
+v_FeII_2374 = []
+v_FeII_2260 = []
+v_FeII_2249 = []
+v_FeII_2367 = []
+v_CoII_2012 = []
+v_CoII_1941 = []
+v_NiII_1741 = []
+v_NiII_1709 = []
+v_NiII_1751=[]
+v_ZnII_2026 = []
+v_ZnII_2062 = []
+
+a = [CI_1656,
+     CIV_1548,
+     CIV_1550,
+     MgI_2852,
+     MgI_2026,
+     MgI_1827,
+     MgII_2796,
+     MgII_2803,
+     AlII_1670,
+     AlIII_1854,
+     AlIII_1862,
+     SiII_1526,
+     SiII_1808,
+     CaII_3934,
+     CaII_3969,
+     TiII_3384,
+     TiII_3242,
+     TiII_3073,
+     TiII_3230,
+     TiII_1910,
+     CrII_2056,
+     CrII_2062,
+     CrII_2066,
+     MnII_2576,
+     MnII_2594,
+     MnII_2606,
+     FeII_1608,
+     FeII_2382,
+     FeII_2600,
+     FeII_2344,
+     FeII_2586,
+     FeII_2374,
+     FeII_2260,
+     FeII_2249,
+     FeII_2367,
+     CoII_2012,
+     CoII_1941,
+     NiII_1741,
+     NiII_1709,
+     NiII_1751,
+     ZnII_2026,
+     ZnII_2062]
+
+b = [v_CI_1656,
+     v_CIV_1548,
+     v_CIV_1550,
+     v_MgI_2852,
+     v_MgI_2026,
+     v_MgI_1827,
+     v_MgII_2796,
+     v_MgII_2803,
+     v_AlII_1670,
+     v_AlIII_1854,
+     v_AlIII_1862,
+     v_SiII_1526,
+     v_SiII_1808,
+     v_CaII_3934,
+     v_CaII_3969,
+     v_TiII_3384,
+     v_TiII_3242,
+     v_TiII_3073,
+     v_TiII_3230,
+     v_TiII_1910,
+     v_CrII_2056,
+     v_CrII_2062,
+     v_CrII_2066,
+     v_MnII_2576,
+     v_MnII_2594,
+     v_MnII_2606,
+     v_FeII_1608,
+     v_FeII_2382,
+     v_FeII_2600,
+     v_FeII_2344,
+     v_FeII_2586,
+     v_FeII_2374,
+     v_FeII_2260,
+     v_FeII_2249,
+     v_FeII_2367,
+     v_CoII_2012,
+     v_CoII_1941,
+     v_NiII_1741,
+     v_NiII_1709,
+     v_NiII_1751,
+     v_ZnII_2026,
+     v_ZnII_2062]
+
+c = [1656.93,
+     1548.20,
+     1550.78,
+     2852.96,
+     2026.48,
+     1827.94,
+     2796.35,
+     2803.53,
+     1670.79,
+     1854.72,
+     1862.79,
+     1526.71,
+     1808.00,
+     3934.78,
+     3969.59,
+     3384.73,
+     3242.92,
+     3073.86,
+     3230.12,
+     1910.85,
+     2056.26,
+     2062.24,
+     2066.16,
+     2576.88,
+     2594.50,
+     2606.46,
+     1608.451,
+     2382.77,
+     2600.17,
+     2344.21,
+     2586.65,
+     2374.46,
+     2260.78,
+     2249.88,
+     2367.59,
+     2012.17,
+     1941.29,
+     1741.55,
+     1709.60,
+     1751.92,
+     2026.14,
+     2062.66]
+
+d = ['CI_1656',
+     'CIV_1548',
+     'CIV_1550',
+     'MgI_2852',
+     'MgI_2026',
+     'MgI_1827',
+     'MgII_2796',
+     'MgII_2803',
+     'AlII_1670',
+     'AlIII_1854',
+     'AlIII_1862',
+     'SiII_1526',
+     'SiII_1808',
+     'CaII_3934',
+     'CaII_3969',
+     'TiII_3384',
+     'TiII_3242',
+     'TiII_3073',
+     'TiII_3230',
+     'TiII_1910',
+     'CrII_2056',
+     'CrII_2062',
+     'CrII_2066',
+     'MnII_2576',
+     'MnII_2594',
+     'MnII_2606',
+     'FeII_1608',
+     'FeII_2382',
+     'FeII_2600',
+     'FeII_2344',
+     'FeII_2586',
+     'FeII_2374',
+     'FeII_2260',
+     'FeII_2249',
+     'FeII_2367',
+     'CoII_2012',
+     'CoII_1941', 
+     'NiII_1741',
+     'NiII_1709',
+     'NiII_1751',
+     'ZnII_2026',
+     'ZnII_2062']
+
+# performing and plotting gaussian fitting of each line in the rearch list.
+mean=np.zeros(len(a))
+sigma=np.zeros(len(a))
+area=np.zeros(len(a))
+mean_err=np.zeros(len(a))
+sigma_err=np.zeros(len(a))
+area_err=np.zeros(len(a))
+
+e = np.arange(421, 429)
+for k in np.arange(8):
+    plt.subplot(e[k])
+    index = (restwave >= c[k] - 20) & (restwave <= c[k] + 20)
+    wave1 = ar(restwave[index])
+    flux = ar(final_combine[index] - 1)
+    flux1 = flux[:, 0]
+    x=np.arange(len(wave1))
+    for i in np.arange(len(wave1)):
+        x[i]=(wave1[i]-c[k])/wave1[i]*3*10**
+    # beginning gaussian fitting, printing out the values of estimation and error of estimation for the three parameters.
+    popt, pcov = curve_fit(gaussian_profile, wave1, flux1, bounds=([c[k] - 1.5, 0, 0], [c[k] + 1.5, 3, 5]))
+    var=np.sqrt(np.diag(pcov))
+    mean[k]=popt[0]
+    sigma[k]=popt[1]
+    area[k]=popt[2]    
+    mean_err[k]=var[0]
+    sigma_err[k]=var[1]
+    area_err[k]=var[2]
+    plt.plot(x, gaussian_profile(wave1, *popt)+1, color='red',linewidth=1,label='fit')
+    plt.plot(x, flux1+1,label='data')
+    plt.ylabel(d[k])
+    plt.hlines(1,min(wave1),max(wave1))
+    plt.ylim(0.6,1.2)
+    plt.legend()
+plt.show()
+for k in np.arange(8,16):
+    plt.subplot(e[k%8])
+    index = (restwave >= c[k] - 20) & (restwave <= c[k] + 20)
+    wave1 = ar(restwave[index])
+    flux = ar(final_combine[index] - 1)
+    flux1 = flux[:, 0]
+    x = np.arange(len(wave1))
+    for i in np.arange(len(wave1)):
+        x[i] = (wave1[i] - c[k]) / wave1[i] * 3 * 10 ** 5
+    popt, pcov = curve_fit(gaussian_profile, wave1, flux1, bounds=([c[k] - 1.5, 0, 0], [c[k] + 1.5, 3, 5]))
+    var=np.sqrt(np.diag(pcov))
+    mean[k]=popt[0]
+    sigma[k]=popt[1]
+    area[k]=popt[2]    
+    mean_err[k]=var[0]
+    sigma_err[k]=var[1]
+    area_err[k]=var[2]
+    plt.plot(x, gaussian_profile(wave1, *popt) + 1, color='red', linewidth=1, label='fit')
+    plt.plot(x, flux1 + 1, label='data')
+    plt.ylabel(d[k])
+    plt.hlines(1, min(wave1), max(wave1))
+    plt.ylim(0.6, 1.2)
+    plt.legend()
+plt.show()
+for k in np.arange(16,24):
+    plt.subplot(e[k%8])
+    index = (restwave >= c[k] - 20) & (restwave <= c[k] + 20)
+    wave1 = ar(restwave[index])
+    flux = ar(final_combine[index] - 1)
+    flux1 = flux[:, 0]
+    x = np.arange(len(wave1))
+    for i in np.arange(len(wave1)):
+        x[i] = (wave1[i] - c[k]) / wave1[i] * 3 * 10 ** 5
+    popt, pcov = curve_fit(gaussian_profile, wave1, flux1, bounds=([c[k] - 1.5, 0, 0], [c[k] + 1.5, 3, 5]))
+    var=np.sqrt(np.diag(pcov))
+    mean[k]=popt[0]
+    sigma[k]=popt[1]
+    area[k]=popt[2]    
+    mean_err[k]=var[0]
+    sigma_err[k]=var[1]
+    area_err[k]=var[2]
+    plt.plot(x, gaussian_profile(wave1, *popt) + 1, color='red', linewidth=1, label='fit')
+    plt.plot(x, flux1 + 1, label='data')
+    plt.ylabel(d[k])
+    plt.hlines(1, min(wave1), max(wave1))
+    plt.ylim(0.6, 1.2)
+    plt.legend()
+plt.show()
+for k in np.arange(24,32):
+    plt.subplot(e[k%8])
+    index = (restwave >= c[k] - 20) & (restwave <= c[k] + 20)
+    wave1 = ar(restwave[index])
+    flux = ar(final_combine[index] - 1)
+    flux1 = flux[:, 0]
+    x = np.arange(len(wave1))
+    for i in np.arange(len(wave1)):
+        x[i] = (wave1[i] - c[k]) / wave1[i] * 3 * 10 ** 5
+    popt, pcov = curve_fit(gaussian_profile, wave1, flux1, bounds=([c[k] - 1.5, 0, 0], [c[k] + 1.5, 3, 5]))
+    var=np.sqrt(np.diag(pcov))
+    mean[k]=popt[0]
+    sigma[k]=popt[1]
+    area[k]=popt[2]    
+    mean_err[k]=var[0]
+    sigma_err[k]=var[1]
+    area_err[k]=var[2]
+    plt.plot(x, gaussian_profile(wave1, *popt) + 1, color='red', linewidth=1, label='fit')
+    plt.plot(x, flux1 + 1, label='data')
+    plt.ylabel(d[k])
+    plt.hlines(1, min(wave1), max(wave1))
+    plt.ylim(0.6, 1.2)
+    plt.legend()
+plt.show()
+for k in np.arange(32,40):
+    plt.subplot(e[k%8])
+    index = (restwave >= c[k] - 20) & (restwave <= c[k] + 20)
+    wave1 = ar(restwave[index])
+    flux = ar(final_combine[index] - 1)
+    flux1 = flux[:, 0]
+    x = np.arange(len(wave1))
+    for i in np.arange(len(wave1)):
+        x[i] = (wave1[i] - c[k]) / wave1[i] * 3 * 10 ** 5
+    popt, pcov = curve_fit(gaussian_profile, wave1, flux1, bounds=([c[k] - 1.5, 0, 0], [c[k] + 1.5, 3, 5]))
+    var=np.sqrt(np.diag(pcov))
+    mean[k]=popt[0]
+    sigma[k]=popt[1]
+    area[k]=popt[2]    
+    mean_err[k]=var[0]
+    sigma_err[k]=var[1]
+    area_err[k]=var[2]
+    plt.plot(x, gaussian_profile(wave1, *popt) + 1, color='red', linewidth=1, label='fit')
+    plt.plot(x, flux1 + 1, label='data')
+    plt.ylabel(d[k])
+    plt.hlines(1, min(wave1), max(wave1))
+    plt.ylim(0.6, 1.2)
+    plt.legend()
+plt.show()
+for k in np.arange(40,42):
+    plt.subplot(e[k%8])
+    index = (restwave >= c[k] - 20) & (restwave <= c[k] + 20)
+    wave1 = ar(restwave[index])
+    flux = ar(final_combine[index] - 1)
+    flux1 = flux[:, 0]
+    x = np.arange(len(wave1))
+    for i in np.arange(len(wave1)):
+        x[i] = (wave1[i] - c[k]) / wave1[i] * 3 * 10 ** 5
+    popt, pcov = curve_fit(gaussian_profile, wave1, flux1, bounds=([c[k] - 1.5, 0, 0], [c[k] + 1.5, 3, 5]))
+    var=np.sqrt(np.diag(pcov))
+    mean[k]=popt[0]
+    sigma[k]=popt[1]
+    area[k]=popt[2]    
+    mean_err[k]=var[0]
+    sigma_err[k]=var[1]
+    area_err[k]=var[2]
+    plt.plot(x, gaussian_profile(wave1, *popt) + 1, color='red', linewidth=1, label='fit')
+    plt.plot(x, flux1 + 1, label='data')
+    plt.ylabel(d[k])
+    plt.hlines(1, min(wave1), max(wave1))
+    plt.ylim(0.6, 1.2)
+    plt.legend()
+plt.show()
+
+c0 = fits.Column(name='name', array=d, format='E')
+c1 = fits.Column(name='mean', array=mean, format='E')
+c2 = fits.Column(name='sigma', array=sigma, format='E')
+c3 = fits.Column(name='area', array=area, format='E')
+c4 = fits.Column(name='mean_err', array=mean_err, format='E')
+c5 = fits.Column(name='sigma_err', array=sigma_err, format='E')
+c6 = fits.Column(name='area_err', array=area_err, format='E')
+t = fits.BinTableHDU.from_columns([c0, c1, c2, c3, c4, c5, c6])
+t.writeto('gaussian_fitting.fits')
