@@ -1,0 +1,89 @@
+import numpy as np
+from scipy import interpolate
+from astropy.io import fits
+import matplotlib.pyplot as plt
+
+def spec_rebin(oldwave, oldflux, newwave):
+    # print 'size:', oldwave.size, newwave.size
+    inbetween = (oldwave[-1] >= newwave) & (oldwave[0] <= newwave)
+    new_flux = np.zeros(newwave.size)
+    f = interpolate.interp1d(oldwave, oldflux)
+    new_flux[inbetween] = f(newwave[inbetween])
+
+    return new_flux
+#input redshift information of the individual spectra as a 2-column array.
+info = np.loadtxt('redshift_info.txt')
+z_arr= info[:,0]
+zabs_arr = info[:,1]
+
+# define the rebined wavelegth array, where each data point is transformed from the observer frame to the rest frame.
+wave_obs = [3650.0, 10400.0]
+wave_window = [wave_obs[0] / (1 + 2.413), wave_obs[1] / (1 + 1.06)]
+dlogw = 1.E-4
+no_grids = np.log10(wave_window[1] / wave_window[0]) / dlogw
+obwave = np.arange(no_grids) * dlogw + np.log10(wave_window[0])
+restwave = 10 ** obwave
+spno = len(z_arr)
+print '%s candidates in total' % spno
+
+# prepare to save later results of spectral combination.
+s = (spno, restwave.size)
+sp_matrix = np.zeros(s)
+err_matrix = np.zeros(s)
+weight = np.zeros(s)
+
+# here, information of each continuum-fitted spectra is recorded in individual files of 4-column arrays. Here, wave represents
+# wavelength at each point, flux/yfit constitutes the normalized flux, and err is the error for continuum fitting.
+for i in np.arange(436):
+    print 'this is cand%s' % i
+    filename= '/path/to/file/continuum_%04d.txt' % i
+    data=np.loadtxt(filename)
+    wave1 = data[:, 0]
+    flux1 = data[:, 1]
+    yfit1 = data[:, 2]
+    err1 = data[:, 3]
+    # eliminating points within the DLA forest.
+    dla = 1215 * (1 + zabs_arr[i]) / (1 + z_arr[i])
+    index = wave1 >= dla
+    wave2 = wave1[index]
+    flux2 = flux1[index]
+    yfit2 = yfit1[index]
+    err2 = err1[index]
+    # ruling out points with small S/N
+    sn = (flux2 - 1) / err2
+    index_2 = np.abs(sn) >= 5
+    wave = wave2[index_2]
+    flux = flux2[index_2]
+    yfit = yfit2[index_2]
+    err = err2[index_2]
+    # rebinning the raw data to fit the number of data points in rest frame.
+    fit_rebin= spec_rebin((1+z_arr[i])*wave/(1+zabs_arr[i]),fit_norm,restwave)
+    err_rebin = spec_rebin((1 + z_arr[i]) * wave / (1 + zabs_arr[i]), err, restwave)
+    sp_matrix[i,:] = fit_rebin
+    err_matrix[i,:] = err_rebin
+
+final_combine=np.zeros((restwave.size,1))
+err_combine=np.zeros((restwave.size,1))
+
+#start weighted combine here using error propagation:
+for k in np.arange(restwave.size):
+    index=[]
+    for i in np.arange(436):
+        if sp_matrix[i,k] > 0.0 and err_matrix[i,k] > 0.0:
+            index.append(i)
+    wsum=0
+    for j in index:
+        wsum= wsum+ sp_matrix[j,k]/err_matrix[j,k]**2
+    final_combine[k] = wsum/np.sum(1/err_matrix[index,k]**2)
+    err_combine[k]=np.sqrt(1/np.sum(1/err_matrix[index,k]**2))
+
+#plotting the combined spectrum
+plt.plot(restwave,final_combine)
+plt.ylim(0,1.5)
+plt.show()
+
+c1 = fits.Column(name='wave', array=restwave, format='E')
+c2 = fits.Column(name='flux', array=final_combine, format='E')
+c3 = fits.Column(name='err', array=err_combine, format='E')
+t = fits.BinTableHDU.from_columns([c1, c2, c3])
+t.writeto('overall_combine.fits')
