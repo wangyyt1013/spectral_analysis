@@ -1,0 +1,97 @@
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
+from numpy import interp
+
+def idl_tabulate(x, f, p=5) :
+    def newton_cotes(x, f) :
+        if x.shape[0] < 2 :
+            return 0
+        rn = (x.shape[0] - 1) * (x - x[0]) / (x[-1] - x[0])
+        weights = scipy.integrate.newton_cotes(rn)[0]
+        return (x[-1] - x[0]) / (x.shape[0] - 1) * np.dot(weights, f)
+    ret = 0
+    for idx in xrange(0, x.shape[0], p - 1) :
+        ret += newton_cotes(x[idx:idx + p], f[idx:idx + p])
+    return ret
+    
+def calthoew(lognflambda,b)
+# expression: ApJ 1986,304,739  Eqn. 4
+   t0=np.sqrt(3.1415926)*4.8**2*10**(lognflambda-15.)/(9.109*2.9979*b)
+   x=10.**(np.arange(600)*0.01-5.)
+   y=1-np.exp(-1*t0*np.exp(-1*x**2))
+   return idl_tabulate(x,y)*2*b/2.9979 
+
+# information about EW of n metal lines contained in an n*4 array, wavelength and oscillator strength info referring to search list in York D. G., et al., 2006, MNRAS, 367, 945
+info=np.loadtxt('ew_info.txt')
+ew=info[:,2]
+aw=info[:,1]
+f=info[:,0]
+ewerr=info[:,3]
+bbest= #input best-fit value for b
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+lognflambda=7+np.arange(60)*0.1
+ew_model=lognflambda
+for i in np.arange(len(lognflambda)-1):
+    ew_model[i]=np.log10(calthoew(lognflambda[i]+8,bbest))
+ 
+ew0=ew[0:7]
+aw0=aw[0:7]
+
+ew1=np.divide(ew0,aw0)
+
+# below, index for ew and aw referring to index of a particular line in the search list
+print np.log10(ew1)
+FeII=np.interp(np.log10(ew1),ew_model,lognflambda)
+MgII=np.interp(np.log10(np.divide(ew[7:9],aw[7:9])),ew_model,lognflambda)
+MgI=np.interp(np.log10(np.divide(ew[9:12],aw[9:12])),ew_model,lognflambda)
+CIV=np.interp(np.log10(np.divide(ew[12:14],aw[12:14])),ew_model,lognflambda)
+AlIII=np.interp(np.log10(np.divide(ew[14:16],aw[14:16])),ew_model,lognflambda)
+AlII=np.interp(np.log10(np.divide(ew[16],aw[16])),ew_model,lognflambda)
+SiII=np.interp(np.log10(np.divide(ew[17:19],aw[17:19])),ew_model,lognflambda)
+TiII=np.interp(np.log10(np.divide(ew[19:24],aw[19:24])),ew_model,lognflambda)
+CrII=np.interp(np.log10(np.divide(ew[24:27],aw[24:27])),ew_model,lognflambda)
+MnII=np.interp(np.log10(np.divide(ew[27:30],aw[27:30])),ew_model,lognflambda)
+CoII=np.interp(np.log10(np.divide(ew[30:32],aw[30:32])),ew_model,lognflambda)
+ZnII=np.interp(np.log10(np.divide(ew[32:34],aw[32:34])),ew_model,lognflambda)
+NiII=np.interp(np.log10(np.divide(ew[34:36],aw[34:36])),ew_model,lognflambda)
+
+# plot the fitted curve of growth
+plt.plot(lognflambda,ew_model,'b--',linewidth=1)
+
+for i in np.arange(6):
+    plt.plot(FeII[i],np.log10(ew1[i]),'ro', label='FeII', marker='.', markersize=10)
+for i in np.arange(2):
+    plt.plot(MgII[i],np.log10(np.divide(ew[i+7],aw[i+7])),'ro', label='MgII', marker='d', markersize=10)
+for i in np.arange(3):
+    plt.plot(MgI[i],np.log10(np.divide(ew[i+9],aw[i+9])),'ro', label='MgI', marker='o', markersize=10)
+for i in np.arange(3):
+    plt.plot(CIV,np.log10(np.divide(ew[i+12],aw[i+12])),'ro', label='CIV', marker='v', markersize=10)
+for i in np.arange(2):
+    plt.plot(AlIII,np.log10(np.divide(ew[i+14],aw[i+14])),'ro', label='AlIII', marker='^', markersize=10)
+for i in np.arange(1):
+    plt.plot(AlII,np.log10(ew[i+16]/aw[i+16]),'ro', marker='p', label='AlII', marker='3', markersize=10)
+for i in np.arange(2):
+    plt.plot(SiII[i],np.log10(np.divide(ew[i+17],aw[i+17])),'ro', label='SiII', marker='+', markersize=10)
+for i in np.arange(5):
+    plt.plot(TiII[i],np.log10(np.divide(ew[i+19],aw[i+19])),'ro', marker='*', label='TiII', markersize=10)
+for i in np.arange(3):
+    plt.plot(CrII[i],np.log10(np.divide(ew[i+24],aw[i+24])),'ro', label='CrII', marker='x', markersize=10)
+for i in np.arange(3):
+    plt.plot(MnII[i],np.log10(np.divide(ew[i+27],aw[i+27])),'ro', label='MnII', marker='2', markersize=10)
+for i in np.arange(2):
+    plt.plot(CoII[i],np.log10(np.divide(ew[i+30],aw[i+30])),'ro', label='CoII', marker='<', markersize=10)
+for i in np.arange(2):
+    plt.plot(ZnII[i],np.log10(np.divide(ew[i+32],aw[i+32])),'ro', label='ZnII', marker='>', markersize=10)
+for i in np.arange(2):
+    plt.plot(NiII[i],np.log10(np.divide(ew[i+34],aw[i+34])),'ro', label='NiII', marker='1', markersize=10)
+
+plt.legend(loc='lower right')
+plt.ylim(-5.2,-2.8)
+plt.xlabel('$lognf\lambda$')
+plt.ylabel('$EW/\lambda$')
+plt.title('cog')
+plt.grid()
+plt.show()
