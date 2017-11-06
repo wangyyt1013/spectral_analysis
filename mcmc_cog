@@ -1,0 +1,53 @@
+import numpy as np
+import
+from pymc import database, Matplot
+import pyfits as pf
+from pymc.Matplot import plot
+import matplotlib.pyplot as pl
+import triangle
+from scipy import integrate
+
+#those euqations are from Jekins et al. 1986 ApJ
+
+
+#log b is from 0, 100
+#log n is from 7, 12
+#here x is the log10(f*wavelength)
+#y is EW for each lines. We treat column density and b parameters as the function
+#parameters.
+lambda0=double([2344.21,2374.46,2382.77,2586.65,2600.17,2249.89,2260.78])
+f0=double([0.1140,0.0313,0.32,0.0691,0.2390,0.0018,0.0024])
+EW0=double([2.24,1.92,2.89,2.69,2.85,0.66,0.62])
+EW_err0=double([0.19,0.15,0.23,0.12,0.15,0.13,0.10])
+
+x=lambda0*f0
+y=EW0
+yerr=EW_err0
+
+def cog_model(x, y):
+    b=mc.Uniform('b',lower=0,upper=100,doc='b' )
+    logn=mc.Uniform('logn',lower=0,upper=100,doc='lognflambda' )
+
+    @mc.deterministic(plot=False,trace=False)
+
+    def calthoew(log_flambda=x, b=b, logn=logn):
+            def func_ew(x):
+                lognflambda=logn+log_flambda
+                tau0=np.sqrt(np.pi)*4.8**2*10**(lognflambda-15.0)/(9.109*2.9979*b)
+                #x=10**(np.arange(600)*0.01 - 5.0)
+                return 1-exp(-1*tau0*np.exp(-1*x**2))
+
+            x_range=10**(np.arange(600)*0.01 - 5.0)
+            EW=integrate.quad(func_ew, x_range.min(), x_range.max() )
+
+            return EW
+    curve = mc.Normal('curve', mu=calthoew, tau=1/yerr**2, value=y,observed=True,\
+                      doc='curve')
+    return locals()
+
+filename='cog_output.pickle'
+mdl = mc.MCMC(model(x,y) ,db='pickle',dbname=filename)
+mdl.sample(iter=1e5,burn=5e4)
+
+outname="parameters_distribution.csv"
+mdl.write_csv(outname, variables=["b", "logn"])
